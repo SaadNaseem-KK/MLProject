@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PointNet Deep Learning | 3D Point Cloud Classification System</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@300;400;500;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto Mono', monospace;
+            background: #0a0e27;
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Advanced 3D Background with LiDAR scanning effect */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* Scanning laser effect overlay */
+        .scan-line {
+            position: fixed;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(0, 255, 255, 0.1) 20%,
+                rgba(0, 255, 255, 0.8) 50%,
+                rgba(0, 255, 255, 0.1) 80%,
+                transparent);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            animation: scan 4s linear infinite;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        @keyframes scan {
+            0% {
+                top: 0;
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+
+        /* Grid overlay effect */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 1;
+            pointer-events: none;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% {
+                background-position: 0 0;
+            }
+            100% {
+                background-position: 50px 50px;
+            }
+        }
+
+        /* Neural network connection lines */
+        .neural-network {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Header with technical HUD style */
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            position: relative;
+            animation: glitchIn 1s ease-out;
+        }
+
+        @keyframes glitchIn {
+            0% {
+                opacity: 0;
+                transform: translateY(-30px);
+                text-shadow: 0 0 100px rgba(0, 255, 255, 1);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: #00ffff;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 0.5rem;
+            text-shadow: 
+                0 0 10px rgba(0, 255, 255, 0.8),
+                0 0 20px rgba(0, 255, 255, 0.5),
+                0 0 30px rgba(0, 255, 255, 0.3),
+                0 0 40px rgba(0, 100, 255, 0.2);
+            animation: neonPulse 3s ease-in-out infinite;
+            position: relative;
+        }
+
+        @keyframes neonPulse {
+            0%, 100% {
+                text-shadow: 
+                    0 0 10px rgba(0, 255, 255, 0.8),
+                    0 0 20px rgba(0, 255, 255, 0.5),
+                    0 0 30px rgba(0, 255, 255, 0.3),
+                    0 0 40px rgba(0, 100, 255, 0.2);
+            }
+            50% {
+                text-shadow: 
+                    0 0 20px rgba(0, 255, 255, 1),
+                    0 0 30px rgba(0, 255, 255, 0.8),
+                    0 0 40px rgba(0, 255, 255, 0.6),
+                    0 0 50px rgba(0, 100, 255, 0.4);
+            }
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #00ffaa;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 1rem;
+        }
+
+        .tech-specs {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .tech-badge {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: #00ffff;
+            backdrop-filter: blur(10px);
+            animation: badgePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes badgePulse {
+            0%, 100% {
+                box-shadow: 0 0 5px rgba(0, 255, 255, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
+            }
+        }
+
+        /* Main grid layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Advanced card styling */
+        .card {
+            background: rgba(10, 14, 39, 0.8);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 2rem;
+            backdrop-filter: blur(20px);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(0, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+            animation: cardSlideIn 0.8s ease-out;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes cardSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(0, 255, 255, 0.1), 
+                transparent);
+            transition: left 0.5s;
+        }
+
+        .card:hover::before {
+            left: 100%;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 255, 255, 0.5);
+            box-shadow: 
+                0 12px 40px rgba(0, 255, 255, 0.2),
+                inset 0 1px 0 rgba(0, 255, 255, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .card-title {
+            font-family: 'Orbitron', sans-serif;
+            color: #00ffff;
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .card-title::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, #00ffff, #0080ff);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Upload zone with LiDAR scanning effect */
+        .upload-section {
+            position: relative;
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(0, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 3rem 2rem;
+            margin-bottom: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: 
+                radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.05) 0%, transparent 70%),
+                linear-gradient(135deg, rgba(0, 100, 255, 0.05) 0%, rgba(0, 255, 255, 0.05) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                transparent 30%, 
+                rgba(0, 255, 255, 0.1) 50%, 
+                transparent 70%);
+            animation: borderScan 3s linear infinite;
+            border-radius: 15px;
+        }
+
+        @keyframes borderScan {
+            0% {
+                transform: translateX(-100%) translateY(-100%) rotate(0deg);
+            }
+            100% {
+                transform: translateX(100%) translateY(100%) rotate(360deg);
+            }
+        }
+
+        .upload-zone:hover {
+            border-color: rgba(0, 255, 255, 0.6);
+            background: 
+                radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.1) 0%, transparent 70%),
+                linear-gradient(135deg, rgba(0, 100, 255, 0.1) 0%, rgba(0, 255, 255, 0.1) 100%);
+            box-shadow: 
+                0 0 30px rgba(0, 255, 255, 0.2),
+                inset 0 0 20px rgba(0, 255, 255, 0.05);
+            transform: scale(1.02);
+        }
+
+        .upload-zone.dragover {
+            border-color: #00ffff;
+            background: 
+                radial-gradient(circle at 50% 50%, rgba(0, 255, 255, 0.2) 0%, transparent 70%);
+            box-shadow: 
+                0 0 40px rgba(0, 255, 255, 0.4),
+                inset 0 0 30px rgba(0, 255, 255, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 0 20px rgba(0, 255, 255, 0.6));
+            animation: floatIcon 3s ease-in-out infinite;
+            position: relative;
+            z-index: 1;
+        }
+
+        @keyframes floatIcon {
+            0%, 100% {
+                transform: translateY(0) rotate(0deg);
+            }
+            25% {
+                transform: translateY(-15px) rotate(5deg);
+            }
+            75% {
+                transform: translateY(-5px) rotate(-5deg);
+            }
+        }
+
+        .upload-text {
+            color: #00ffff;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            letter-spacing: 1px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .upload-hint {
+            color: #00ffaa;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            position: relative;
+            z-index: 1;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-info {
+            margin-top: 1rem;
+            padding: 1.5rem;
+            background: rgba(0, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 10px;
+            color: #00ffff;
+            display: none;
+            animation: slideInLeft 0.5s ease-out;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .file-info strong {
+            color: #00ffaa;
+        }
+
+        /* Advanced button with circuit pattern */
+        .classify-btn {
+            width: 100%;
+            padding: 1.2rem;
+            background: linear-gradient(135deg, #0080ff 0%, #00ffff 100%);
+            color: #0a0e27;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1.5rem;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .classify-btn::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+            transform: scale(0);
+            transition: transform 0.6s;
+        }
+
+        .classify-btn:hover::before {
+            transform: scale(1);
+        }
+
+        .classify-btn:hover {
+            box-shadow: 
+                0 0 30px rgba(0, 255, 255, 0.6),
+                0 10px 40px rgba(0, 128, 255, 0.4);
+            transform: translateY(-3px);
+        }
+
+        .classify-btn:active {
+            transform: translateY(0);
+        }
+
+        .classify-btn:disabled {
+            background: rgba(100, 100, 100, 0.3);
+            cursor: not-allowed;
+            color: #666;
+            transform: none;
+        }
+
+        .classify-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Advanced loader with neural network animation */
+        .loader-container {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+
+        .loader {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .loader-ring {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 3px solid transparent;
+            border-top-color: #00ffff;
+            border-radius: 50%;
+            animation: spin 1.5s linear infinite;
+        }
+
+        .loader-ring:nth-child(2) {
+            border-top-color: #0080ff;
+            animation-delay: 0.3s;
+            animation-duration: 1.2s;
+        }
+
+        .loader-ring:nth-child(3) {
+            border-top-color: #00ffaa;
+            animation-delay: 0.6s;
+            animation-duration: 0.9s;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            color: #00ffff;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+
+        /* Results section */
+        .results-section {
+            display: none;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .prediction-result {
+            background: linear-gradient(135deg, rgba(0, 128, 255, 0.2) 0%, rgba(0, 255, 255, 0.2) 100%);
+            border: 2px solid rgba(0, 255, 255, 0.4);
+            padding: 2.5rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+            animation: resultPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        @keyframes resultPop {
+            0% {
+                opacity: 0;
+                transform: scale(0.3) rotate(-10deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) rotate(0deg);
+            }
+        }
+
+        .prediction-result::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.1) 0%, transparent 70%);
+            animation: rotate 10s linear infinite;
+        }
+
+        @keyframes rotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .predicted-class {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            color: #00ffff;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 
+                0 0 20px rgba(0, 255, 255, 0.8),
+                0 0 40px rgba(0, 255, 255, 0.4);
+            position: relative;
+            z-index: 1;
+        }
+
+        .confidence {
+            font-size: 1.4rem;
+            color: #00ffaa;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        .confidence-value {
+            font-size: 1.8rem;
+            color: #00ffff;
+            font-weight: 700;
+        }
+
+        /* Advanced probability visualization */
+        .probabilities-header {
+            margin-bottom: 1.5rem;
+            color: #00ffff;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .probabilities-list {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .prob-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            background: rgba(0, 255, 255, 0.03);
+            border: 1px solid rgba(0, 255, 255, 0.1);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            animation: slideInRight 0.5s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .prob-item:hover {
+            background: rgba(0, 255, 255, 0.08);
+            border-color: rgba(0, 255, 255, 0.3);
+            transform: translateX(8px);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+
+        .prob-rank {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #00ffaa;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .prob-name {
+            font-weight: 500;
+            color: #00ffff;
+            text-transform: capitalize;
+            min-width: 120px;
+            letter-spacing: 1px;
+        }
+
+        .prob-bar-container {
+            flex: 1;
+            margin: 0 1.5rem;
+            background: rgba(0, 50, 100, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            height: 12px;
+            position: relative;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .prob-bar {
+            height: 100%;
+            background: linear-gradient(90deg, 
+                rgba(0, 128, 255, 0.8), 
+                rgba(0, 255, 255, 0.8));
+            border-radius: 10px;
+            position: relative;
+            transition: width 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: fillBar 1.2s ease-out;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .prob-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.3), 
+                transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes fillBar {
+            from {
+                width: 0;
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .prob-value {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            color: #00ffff;
+            min-width: 80px;
+            text-align: right;
+            font-size: 1.1rem;
+        }
+
+        /* 3D Visualization */
+        #pointcloud-viz {
+            width: 100%;
+            height: 600px;
+            border-radius: 15px;
+            overflow: hidden;
+            background: rgba(0, 20, 40, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            box-shadow: inset 0 0 50px rgba(0, 255, 255, 0.05);
+        }
+
+        /* Error message */
+        .error-message {
+            background: rgba(255, 50, 100, 0.2);
+            border: 2px solid rgba(255, 50, 100, 0.5);
+            color: #ff5566;
+            padding: 1.2rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            display: none;
+            animation: shake 0.5s ease-out;
+            backdrop-filter: blur(10px);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-15px); }
+            75% { transform: translateX(15px); }
+        }
+
+        /* System info panel */
+        .system-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .info-card {
+            background: rgba(0, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            animation: cardSlideIn 0.8s ease-out;
+        }
+
+        .info-card:hover {
+            background: rgba(0, 255, 255, 0.1);
+            border-color: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .info-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.5));
+        }
+
+        .info-label {
+            color: #00ffaa;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-value {
+            color: #00ffff;
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Responsive design */
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .card {
+                padding: 1.5rem;
+            }
+
+            #pointcloud-viz {
+                height: 400px;
+            }
+
+            .tech-specs {
+                gap: 1rem;
+            }
+
+            .predicted-class {
+                font-size: 2rem;
+            }
+        }
+
+        /* Custom scrollbar */
+        .probabilities-list::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .probabilities-list::-webkit-scrollbar-track {
+            background: rgba(0, 50, 100, 0.2);
+            border-radius: 10px;
+        }
+
+        .probabilities-list::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #0080ff, #00ffff);
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        .probabilities-list::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #00ffff, #0080ff);
+        }
+
+        /* Processing animation overlay */
+        .processing-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 14, 39, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .processing-content {
+            text-align: center;
+        }
+
+        .processing-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            color: #00ffff;
+            margin-bottom: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .neural-viz {
+            width: 300px;
+            height: 200px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .neuron {
+            width: 20px;
+            height: 20px;
+            background: #00ffff;
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+            animation: neuronPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes neuronPulse {
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.5);
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 3D Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
+    
+    <!-- Scanning laser effect -->
+    <div class="scan-line"></div>
+    
+    <!-- Grid overlay -->
+    <div class="grid-overlay"></div>
+
+    <!-- Neural network SVG -->
+    <svg class="neural-network" id="neuralSvg"></svg>
+
+    <!-- Processing overlay -->
+    <div class="processing-overlay" id="processingOverlay">
+        <div class="processing-content">
+            <div class="processing-title">Processing Point Cloud</div>
+            <div class="neural-viz" id="neuralViz"></div>
+            <div class="loader">
+                <div class="loader-ring"></div>
+                <div class="loader-ring"></div>
+                <div class="loader-ring"></div>
+            </div>
+            <div class="loader-text">Running Neural Network Inference...</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>⚡ PointNet Deep Learning ⚡</h1>
+            <p class="subtitle">3D Point Cloud Classification System</p>
+            <div class="tech-specs">
+                <div class="tech-badge">🧠 Deep Neural Network</div>
+                <div class="tech-badge">📊 1024 Points Sampling</div>
+                <div class="tech-badge">🎯 10 Object Classes</div>
+                <div class="tech-badge">⚡ Real-time Inference</div>
+            </div>
+        </header>
+
+        <div class="main-grid">
+            <!-- Upload & Results Section -->
+            <div class="card upload-section">
+                <h2 class="card-title">📡 Upload 3D Model</h2>
+                
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">🔷</div>
+                    <p class="upload-text">Drop .OFF Point Cloud File</p>
+                    <p class="upload-hint">or click to browse filesystem</p>
+                </div>
+
+                <input type="file" id="fileInput" accept=".off">
+                
+                <div class="file-info" id="fileInfo"></div>
+
+                <button class="classify-btn" id="classifyBtn" disabled>
+                    <span>⚡ Initiate Classification</span>
+                </button>
+
+                <div class="loader-container" id="loaderContainer">
+                    <div class="loader">
+                        <div class="loader-ring"></div>
+                        <div class="loader-ring"></div>
+                        <div class="loader-ring"></div>
+                    </div>
+                    <div class="loader-text">Analyzing point cloud geometry...</div>
+                </div>
+
+                <div class="error-message" id="errorMessage"></div>
+
+                <!-- Results Section -->
+                <div class="results-section" id="resultsSection">
+                    <h2 class="card-title" style="margin-top: 2rem;">📊 Classification Results</h2>
+                    
+                    <div class="prediction-result">
+                        <div class="predicted-class" id="predictedClass">-</div>
+                        <div class="confidence">
+                            Confidence: <span class="confidence-value" id="confidence">-</span>
+                        </div>
+                    </div>
+
+                    <h3 class="probabilities-header">🎯 Class Probability Distribution</h3>
+                    <div class="probabilities-list" id="probabilitiesList"></div>
+                </div>
+            </div>
+
+            <!-- Visualization Section -->
+            <div class="card">
+                <h2 class="card-title">🎨 3D Point Cloud Visualization</h2>
+                <div id="pointcloud-viz"></div>
+                
+                <div class="system-info">
+                    <div class="info-card">
+                        <div class="info-icon">🔢</div>
+                        <div class="info-label">Points</div>
+                        <div class="info-value" id="pointCount">-</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-icon">📐</div>
+                        <div class="info-label">Dimensions</div>
+                        <div class="info-value">XYZ</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-icon">🎯</div>
+                        <div class="info-label">Model</div>
+                        <div class="info-value">PointNet</div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-icon">⚡</div>
+                        <div class="info-label">Status</div>
+                        <div class="info-value" id="systemStatus">Ready</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== THREE.JS BACKGROUND ANIMATION ====================
+        let scene, camera, renderer, pointCloud;
+        
+        function initBackground() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('bg-canvas'),
+                alpha: true,
+                antialias: true
+            });
+            
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            
+            // Create animated point cloud background
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const colors = [];
+            
+            for (let i = 0; i < 5000; i++) {
+                const x = (Math.random() - 0.5) * 100;
+                const y = (Math.random() - 0.5) * 100;
+                const z = (Math.random() - 0.5) * 100;
+                vertices.push(x, y, z);
+                
+                // Cyan to blue gradient colors
+                colors.push(0, Math.random() * 0.5 + 0.5, 1);
+            }
+            
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            
+            pointCloud = new THREE.Points(geometry, material);
+            scene.add(pointCloud);
+            
+            camera.position.z = 50;
+            
+            animate();
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            pointCloud.rotation.x += 0.0003;
+            pointCloud.rotation.y += 0.0005;
+            
+            // Breathing effect
+            const time = Date.now() * 0.0005;
+            pointCloud.scale.x = 1 + Math.sin(time) * 0.05;
+            pointCloud.scale.y = 1 + Math.cos(time) * 0.05;
+            
+            renderer.render(scene, camera);
+        }
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ==================== NEURAL NETWORK VISUALIZATION ====================
+        function createNeuralConnections() {
+            const svg = document.getElementById('neuralSvg');
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            for (let i = 0; i < 20; i++) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', Math.random() * width);
+                line.setAttribute('y1', Math.random() * height);
+                line.setAttribute('x2', Math.random() * width);
+                line.setAttribute('y2', Math.random() * height);
+                line.setAttribute('stroke', 'rgba(0, 255, 255, 0.1)');
+                line.setAttribute('stroke-width', '1');
+                svg.appendChild(line);
+                
+                // Animate
+                setInterval(() => {
+                    line.setAttribute('opacity', Math.random() * 0.5);
+                }, Math.random() * 2000 + 1000);
+            }
+        }
+
+        // ==================== FILE UPLOAD HANDLING ====================
+        let selectedFile = null;
+
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const classifyBtn = document.getElementById('classifyBtn');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.off')) {
+                showError('Invalid file format. Please upload a .OFF point cloud file.');
+                return;
+            }
+
+            selectedFile = file;
+            fileInfo.style.display = 'block';
+            fileInfo.innerHTML = `
+                <strong>📄 File Name:</strong> ${file.name}<br>
+                <strong>📏 File Size:</strong> ${(file.size / 1024).toFixed(2)} KB<br>
+                <strong>📅 Modified:</strong> ${new Date(file.lastModified).toLocaleString()}
+            `;
+            classifyBtn.disabled = false;
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('systemStatus').textContent = 'File Loaded';
+            document.getElementById('systemStatus').style.color = '#00ffaa';
+        }
+
+        // ==================== CLASSIFICATION ====================
+        classifyBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const loaderContainer = document.getElementById('loaderContainer');
+            const resultsSection = document.getElementById('resultsSection');
+            const processingOverlay = document.getElementById('processingOverlay');
+            
+            classifyBtn.disabled = true;
+            loaderContainer.style.display = 'block';
+            resultsSection.style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('systemStatus').textContent = 'Processing';
+            document.getElementById('systemStatus').style.color = '#00ffff';
+            
+            // Show processing overlay
+            processingOverlay.style.display = 'flex';
+            createProcessingNeurons();
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                // Add delay for effect
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                if (data.success) {
+                    displayResults(data);
+                    visualizePointCloud(data.pointcloud);
+                    document.getElementById('systemStatus').textContent = 'Complete';
+                    document.getElementById('systemStatus').style.color = '#00ffaa';
+                    document.getElementById('pointCount').textContent = data.pointcloud.x.length;
+                } else {
+                    showError(data.error || 'Classification failed. Please try again.');
+                    document.getElementById('systemStatus').textContent = 'Error';
+                    document.getElementById('systemStatus').style.color = '#ff5566';
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+                document.getElementById('systemStatus').textContent = 'Error';
+                document.getElementById('systemStatus').style.color = '#ff5566';
+            } finally {
+                loaderContainer.style.display = 'none';
+                processingOverlay.style.display = 'none';
+                classifyBtn.disabled = false;
+            }
+        });
+
+        function createProcessingNeurons() {
+            const neuralViz = document.getElementById('neuralViz');
+            neuralViz.innerHTML = '';
+            
+            const positions = [
+                {x: 50, y: 100}, {x: 150, y: 100}, {x: 250, y: 100},
+                {x: 100, y: 50}, {x: 200, y: 50},
+                {x: 100, y: 150}, {x: 200, y: 150}
+            ];
+            
+            positions.forEach((pos, i) => {
+                const neuron = document.createElement('div');
+                neuron.className = 'neuron';
+                neuron.style.left = pos.x + 'px';
+                neuron.style.top = pos.y + 'px';
+                neuron.style.animationDelay = (i * 0.1) + 's';
+                neuralViz.appendChild(neuron);
+            });
+        }
+
+        function displayResults(data) {
+            document.getElementById('predictedClass').textContent = data.predicted_class;
+            document.getElementById('confidence').textContent = (data.confidence * 100).toFixed(2) + '%';
+
+            const probsList = document.getElementById('probabilitiesList');
+            probsList.innerHTML = '';
+
+            // Sort probabilities
+            const sortedProbs = Object.entries(data.all_probabilities)
+                .sort((a, b) => b[1] - a[1]);
+
+            sortedProbs.forEach(([className, prob], index) => {
+                const item = document.createElement('div');
+                item.className = 'prob-item';
+                item.style.animationDelay = `${index * 0.08}s`;
+                
+                item.innerHTML = `
+                    <span class="prob-rank">#${index + 1}</span>
+                    <span class="prob-name">${className}</span>
+                    <div class="prob-bar-container">
+                        <div class="prob-bar" style="width: ${prob * 100}%"></div>
+                    </div>
+                    <span class="prob-value">${(prob * 100).toFixed(2)}%</span>
+                `;
+                
+                probsList.appendChild(item);
+            });
+
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function visualizePointCloud(pointcloud) {
+            // Create color array based on height (z-axis)
+            const zValues = pointcloud.z;
+            const minZ = Math.min(...zValues);
+            const maxZ = Math.max(...zValues);
+            
+            const colors = zValues.map(z => {
+                const normalized = (z - minZ) / (maxZ - minZ);
+                // Create gradient from blue to cyan
+                const r = 0;
+                const g = Math.floor(normalized * 255);
+                const b = 255;
+                return `rgb(${r}, ${g}, ${b})`;
+            });
+
+            const trace = {
+                x: pointcloud.x,
+                y: pointcloud.y,
+                z: pointcloud.z,
+                mode: 'markers',
+                marker: {
+                    size: 2,
+                    color: colors,
+                    opacity: 0.8,
+                    line: {
+                        color: 'rgba(0, 255, 255, 0.2)',
+                        width: 0.5
+                    }
+                },
+                type: 'scatter3d',
+                hovertemplate: 
+                    '<b>Point Cloud</b><br>' +
+                    'X: %{x:.3f}<br>' +
+                    'Y: %{y:.3f}<br>' +
+                    'Z: %{z:.3f}<br>' +
+                    '<extra></extra>'
+            };
+
+            const layout = {
+                scene: {
+                    xaxis: {
+                        title: 'X Axis',
+                        gridcolor: 'rgba(0, 255, 255, 0.2)',
+                        zerolinecolor: 'rgba(0, 255, 255, 0.4)',
+                        color: '#00ffff'
+                    },
+                    yaxis: {
+                        title: 'Y Axis',
+                        gridcolor: 'rgba(0, 255, 255, 0.2)',
+                        zerolinecolor: 'rgba(0, 255, 255, 0.4)',
+                        color: '#00ffff'
+                    },
+                    zaxis: {
+                        title: 'Z Axis',
+                        gridcolor: 'rgba(0, 255, 255, 0.2)',
+                        zerolinecolor: 'rgba(0, 255, 255, 0.4)',
+                        color: '#00ffff'
+                    },
+                    camera: {
+                        eye: {x: 1.5, y: 1.5, z: 1.5}
+                    },
+                    bgcolor: 'rgba(0, 20, 40, 0)'
+                },
+                margin: {l: 0, r: 0, b: 0, t: 0},
+                paper_bgcolor: 'rgba(0, 0, 0, 0)',
+                plot_bgcolor: 'rgba(0, 0, 0, 0)',
+                font: {
+                    color: '#00ffff',
+                    family: 'Roboto Mono, monospace'
+                }
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['toImage'],
+                modeBarButtonsToAdd: [{
+                    name: 'Reset View',
+                    icon: Plotly.Icons.home,
+                    click: function(gd) {
+                        Plotly.relayout(gd, {
+                            'scene.camera': {
+                                eye: {x: 1.5, y: 1.5, z: 1.5}
+                            }
+                        });
+                    }
+                }]
+            };
+
+            Plotly.newPlot('pointcloud-viz', [trace], layout, config);
+            
+            // Auto-rotate animation
+            let angle = 0;
+            setInterval(() => {
+                angle += 1;
+                const radians = angle * Math.PI / 180;
+                Plotly.relayout('pointcloud-viz', {
+                    'scene.camera.eye': {
+                        x: 1.5 * Math.cos(radians),
+                        y: 1.5 * Math.sin(radians),
+                        z: 1.5
+                    }
+                });
+            }, 50);
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.innerHTML = `<strong>⚠ ERROR:</strong> ${message}`;
+            errorDiv.style.display = 'block';
+        }
+
+        // ==================== INITIALIZATION ====================
+        window.addEventListener('load', () => {
+            initBackground();
+            createNeuralConnections();
+        });
+
+        // Mouse parallax effect
+        document.addEventListener('mousemove', (e) => {
+            const mouseX = (e.clientX / window.innerWidth) - 0.5;
+            const mouseY = (e.clientY / window.innerHeight) - 0.5;
+            
+            if (pointCloud) {
+                pointCloud.rotation.x += mouseY * 0.001;
+                pointCloud.rotation.y += mouseX * 0.001;
+            }
+        });
+    </script>
+</body>
+</html>
